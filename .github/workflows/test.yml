@@ -52,4 +52,4 @@ jobs:
           import pooch
           from pathlib import Path
 
-          assert sum(1 for p in Path(pooch.os_cache("foo")).iterdir() if p.is_file()) == 2
+          assert sum(1 for p in Path(pooch.os_cache("foo")).expanduser().iterdir() if p.is_file()) == 2
