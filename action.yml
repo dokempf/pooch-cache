@@ -45,7 +45,7 @@ runs:
         known_hashes = parse_array("""${{ inputs.known-hashes }}""")
         base_urls = parse_array("""${{ inputs.base-urls }}""")
         registry_files = parse_array("""${{ inputs.registry-files }}""")
-        whitelist = parse_array("""${{ inputs.whitelist }}""")
+        whitelist = parse_array("""${{ inputs.filename-whitelist }}""")
 
         if len(base_urls) != len(registry_files):
             raise ValueError("Number of base URLs must match number of registry files")
