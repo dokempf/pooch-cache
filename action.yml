@@ -35,6 +35,13 @@ runs:
       shell: bash
       run: echo "XDG_CACHE_HOME=~/.cache" >> "$GITHUB_ENV"
 
+    - name: Cache pooch cache
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/${{ inputs.name }}
+        key: pooch-cache-${{ inputs.name }}
+        enableCrossOsArchive: true
+
     - name: Download data via pooch (no-op in case of cache hit)
       shell: python
       id: pooch-setup
@@ -98,13 +105,6 @@ runs:
 
         with open(os.environ["GITHUB_OUTPUT"], "a") as f:
             f.write(f"pooch-cache-path={pooch.os_cache('${{ inputs.name }}')}")
-
-    - name: Cache pooch cache
-      uses: actions/cache@v3
-      with:
-        path: ~/.cache/${{ inputs.name }}
-        key: pooch-cache-${{ inputs.name }}
-        enableCrossOsArchive: true
 
     - name: Copy cache to the location where pooch will expect them
       shell: python
