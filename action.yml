@@ -4,7 +4,18 @@ inputs:
   name:
     description: "The name of the cache"
     required: true
-    default: ""
+    default: "pooch-cache"
+  dois:
+    description: "DOIs from which to download. Pass as new line separated string."
+  file-urls:
+    description: "File URLs to download, requires known-hashes of same length. Pass as new line separated string."
+  known-hashes:
+    description: "Known hashes for file-urls download. Pass as new line separated string."
+  base-urls:
+    description: "Base URLs for download, requires registry-files of same length. Pass as new line separated string."
+  registry-files:
+    description: "Registry files which download. Pass as new line separated string."
+
 runs:
   using: "composite"
   steps:
@@ -19,8 +30,44 @@ runs:
         import os
         import pooch
 
+        # Get the cache location
+        cache = pooch.os_cache("${{ inputs.name }}")
+
+        # Parse the inputs into Python data structures
+        dois = [doi.strip() for doi in "${{ inputs.dois }}".split("\n")]
+        file_urls = [url.strip() for url in "${{ inputs.file-urls }}".split("\n")]
+        known_hashes = [hash.strip() for hash in "${{ inputs.known-hashes }}".split("\n")]
+        base_urls = [base.strip() for base in "${{ inputs.base-urls }}".split("\n")]
+        registry_files = [reg.strip() for reg in "${{ inputs.registry-files }}".split("\n")]
+
+        if len(base_urls) != len(registry_files):
+            raise ValueError("Number of base URLs must match number of registry files")
+        if len(file_urls) != len(known_hashes):
+            raise ValueError("Number of file URLs must match number of known hashes")
+
+        # Download all DOI content
+        for doi in dois:
+            p = pooch.Pooch(base_url=f"doi:{doi}", path=cache)
+            p.load_registry_from_doi()
+
+            for fn in p.registry:
+                p.fetch(fn)
+
+        # Download all registry content
+        for base, reg in zip(base_urls, registry_files):
+            p = pooch.Pooch(base_url=base_url, path=cache)
+            p.load_registry(reg)
+
+            for fn in p.registry:
+                p.fetch(fn)
+
+        # Download all files
+        for url, hash in zip(file_urls, known_hashes):
+            pooch.retrieve(url=url, known_hash=hash)
+
+        # Explicitly write out the cache location
         with open(os.environ["GITHUB_OUTPUT"], "a") as f:
-            f.write(f"pooch-cache-path={pooch.os_cache('${{ inputs.name }}')}")
+            f.write(f"pooch-cache-path={cache}")
   
     - name: Cache pooch cache
       uses: actions/cache@v3
