@@ -82,7 +82,7 @@ runs:
 
         # Download all registry content
         for base, reg in zip(base_urls, registry_files):
-            p = pooch.Pooch(base_url=base_url, path=cache)
+            p = pooch.Pooch(base_url=base, path=cache)
             p.load_registry(reg)
 
             for fn in p.registry:
