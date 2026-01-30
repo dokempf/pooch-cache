@@ -15,6 +15,8 @@ inputs:
     description: "Base URLs for download, requires registry-files of same length. Pass as new line separated string."
   registry-files:
     description: "Registry files which download. Pass as new line separated string."
+  filename-whitelist:
+    description: "A whitelist of filenames used when downloading files from registries (useful for e.g. partial downloads from a DOI)"
 
 runs:
   using: "composite"
@@ -43,6 +45,7 @@ runs:
         known_hashes = parse_array("""${{ inputs.known-hashes }}""")
         base_urls = parse_array("""${{ inputs.base-urls }}""")
         registry_files = parse_array("""${{ inputs.registry-files }}""")
+        whitelist = parse_array("""${{ inputs.whitelist }}""")
 
         if len(base_urls) != len(registry_files):
             raise ValueError("Number of base URLs must match number of registry files")
@@ -55,6 +58,8 @@ runs:
             p.load_registry_from_doi()
 
             for fn in p.registry:
+                if whitelist and fn not in whitelist:
+                    continue
                 p.fetch(fn)
 
         # Download all registry content
@@ -63,6 +68,8 @@ runs:
             p.load_registry(reg)
 
             for fn in p.registry:
+                if whitelist and fn not in whitelist:
+                    continue
                 p.fetch(fn)
 
         # Download all files
