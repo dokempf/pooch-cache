@@ -27,7 +27,8 @@ runs:
       run: python -m pip install pooch
 
     - shell: python
-      id: get-pooch-cache-path
+      env:
+        XDG_CACHE_HOME: ~/.cache
       run: |
         import os
         import pooch
@@ -75,14 +76,10 @@ runs:
         # Download all files
         for url, hash in zip(file_urls, known_hashes):
             pooch.retrieve(url=url, known_hash=hash)
-
-        # Explicitly write out the cache location
-        with open(os.environ["GITHUB_OUTPUT"], "a") as f:
-            f.write(f"pooch-cache-path={cache}")
   
     - name: Cache pooch cache
       uses: actions/cache@v3
       with:
-        path: ${{ steps.get-pooch-cache-path.outputs.pooch-cache-path }}
+        path: ~/.cache/${{ inputs.name }}
         key: pooch-cache-${{ inputs.name }}
         enableCrossOsArchive: true
