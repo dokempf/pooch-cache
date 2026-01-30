@@ -32,8 +32,13 @@ runs:
       run: python -m pip install pooch
 
     - name: Export XDG cache location
-      shell: bash
-      run: echo "XDG_CACHE_HOME=~/.cache" >> "$GITHUB_ENV"
+      shell: python
+      run: |
+        import os
+        from pathlib import Path
+        cache_home = str(Path.home() / ".cache")
+        with open(os.environ["GITHUB_ENV"], "a") as f:
+            f.write(f"XDG_CACHE_HOME={cache_home}\n")
 
     - name: Cache pooch cache
       uses: actions/cache@v3
