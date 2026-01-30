@@ -107,6 +107,24 @@ runs:
         enableCrossOsArchive: true
 
     - name: Copy cache to the location where pooch will expect them
-      shell: bash
+      shell: python
       if: runner.os != 'Linux'
-      run: cp -r ~/.cache/${{ inputs.name }} ${{ steps.pooch-setup.outputs.pooch-cache-path }}
+      run: |
+        import os
+        import shutil
+        from pathlib import Path
+
+        cache_name = "${{ inputs.name }}"
+
+        # Get the home directory
+        home = Path.home()
+        source = home / ".cache" / cache_name
+
+        # Get where pooch expects it
+        import pooch
+        dest = Path(pooch.os_cache(cache_name))
+
+        if source.exists() and source != dest:
+            if dest.exists():
+                shutil.rmtree(dest)
+            shutil.copytree(source, dest)
