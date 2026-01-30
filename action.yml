@@ -23,12 +23,16 @@ runs:
   steps:
     - uses: actions/setup-python@v5
 
-    - shell: bash
+    - name: Install pooch
+      shell: bash
       run: python -m pip install pooch
 
-    - shell: python
-      env:
-        XDG_CACHE_HOME: ~/.cache
+    - name: Export XDG cache location
+      shell: bash
+      run: echo "XDG_CACHE_HOME=~/.cache" >> "$GITHUB_ENV"
+
+    - name: Download data via pooch (no-op in case of cache hit)
+      shell: python
       run: |
         import os
         import pooch
