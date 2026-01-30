@@ -33,6 +33,7 @@ runs:
 
     - name: Download data via pooch (no-op in case of cache hit)
       shell: python
+      id: pooch-setup
       run: |
         import os
         import pooch
@@ -81,9 +82,17 @@ runs:
         for url, hash in zip(file_urls, known_hashes):
             pooch.retrieve(url=url, known_hash=hash, path=cache)
 
+        with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+            f.write(f"pooch-cache-path={pooch.os_cache('${{ inputs.name }}')}")
+
     - name: Cache pooch cache
       uses: actions/cache@v3
       with:
         path: ~/.cache/${{ inputs.name }}
         key: pooch-cache-${{ inputs.name }}
         enableCrossOsArchive: true
+
+    - name: Copy cache to the location where pooch will expect them
+      shell: bash
+      if: runner.os != 'Linux'
+      run: cp -r ~/.cache/${{ inputs.name }} ${{ steps.pooch-setup.outputs.pooch-cache-path }}
