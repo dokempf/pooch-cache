@@ -80,7 +80,7 @@ runs:
         # Download all files
         for url, hash in zip(file_urls, known_hashes):
             pooch.retrieve(url=url, known_hash=hash, path=cache)
-  
+
     - name: Cache pooch cache
       uses: actions/cache@v3
       with:
