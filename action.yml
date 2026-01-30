@@ -2,7 +2,7 @@ name: "pooch-cache"
 description: "Caches pooches cache"
 inputs:
   name:
-    description: "The name of the cache"
+    description: "The name of the cache, as passed to pooch.os_cache"
     required: true
     default: "pooch-cache"
   dois:
@@ -34,11 +34,11 @@ runs:
         cache = pooch.os_cache("${{ inputs.name }}")
 
         # Parse the inputs into Python data structures
-        dois = [doi.strip() for doi in "${{ inputs.dois }}".split("\n")]
-        file_urls = [url.strip() for url in "${{ inputs.file-urls }}".split("\n")]
-        known_hashes = [hash.strip() for hash in "${{ inputs.known-hashes }}".split("\n")]
-        base_urls = [base.strip() for base in "${{ inputs.base-urls }}".split("\n")]
-        registry_files = [reg.strip() for reg in "${{ inputs.registry-files }}".split("\n")]
+        dois = [doi.strip() for doi in """${{ inputs.dois }}""".split("\n")]
+        file_urls = [url.strip() for url in """${{ inputs.file-urls }}""".split("\n")]
+        known_hashes = [hash.strip() for hash in """${{ inputs.known-hashes }}""".split("\n")]
+        base_urls = [base.strip() for base in """${{ inputs.base-urls }}""".split("\n")]
+        registry_files = [reg.strip() for reg in """${{ inputs.registry-files }}""".split("\n")]
 
         if len(base_urls) != len(registry_files):
             raise ValueError("Number of base URLs must match number of registry files")
