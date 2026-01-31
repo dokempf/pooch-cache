@@ -12,7 +12,7 @@ on:
 jobs:
   test-cache-creation:
     name: Test cache setup
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
 
     steps:
       #TODO: For better testing, it would be nice to first invalidate any cache that still exists
@@ -52,5 +52,10 @@ jobs:
         run: |
           import pooch
           from pathlib import Path
+
+          print(Path(pooch.os_cache("foo")).expanduser())
+          print("Iterating:")
+          for p in Path(pooch.os_cache("foo")).expanduser().iterdir():
+              print(p)
 
           assert sum(1 for p in Path(pooch.os_cache("foo")).expanduser().iterdir() if p.is_file()) == 2

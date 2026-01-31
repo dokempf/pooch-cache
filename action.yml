@@ -26,14 +26,35 @@ runs:
     - name: Install pooch
       shell: bash
       run: python -m pip install pooch
+  
+    - name: Cache pooch cache
+      uses: actions/cache@v3
+      with:
+        path: ~/.pooch-cache-${{ inputs.name }}
+        key: pooch-cache-${{ inputs.name }}
+        enableCrossOsArchive: true
 
-    - name: Export XDG cache location
-      shell: bash
-      run: echo "XDG_CACHE_HOME=~/.cache" >> "$GITHUB_ENV"
-
-    - name: Download data via pooch (no-op in case of cache hit)
+    - name: Determine actual pooch cache location
       shell: python
-      id: pooch-setup
+      id: pooch-cache
+      run: |
+        import os
+        import pooch
+
+        print(pooch.os_cache('${{ inputs.name }}'))
+        with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+            f.write(f"pooch-cache-path={pooch.os_cache('${{ inputs.name }}')}")
+
+    - name: Copy GH cache to the location where pooch will expect them
+      shell: bash
+      run: |
+        mkdir -p ~/.pooch-cache-${{ inputs.name }}
+        ls -al ~/.pooch-cache-${{ inputs.name }}
+        cp -r ~/.pooch-cache-${{ inputs.name }}/. ${{ steps.pooch-cache.outputs.pooch-cache-path }}
+        ls -al ${{ steps.pooch-cache.outputs.pooch-cache-path }}
+
+    - name: Download data via pooch (no-op in case of cache hit, otherwise performs the actual download)
+      shell: python
       run: |
         import os
         import pooch
@@ -82,17 +103,20 @@ runs:
         for url, hash in zip(file_urls, known_hashes):
             pooch.retrieve(url=url, known_hash=hash, path=cache)
 
-        with open(os.environ["GITHUB_OUTPUT"], "a") as f:
-            f.write(f"pooch-cache-path={pooch.os_cache('${{ inputs.name }}')}")
+    - name: Copy Pooch cache back to the GH cache location
+      shell: bash
+      run: |
+        ls -al ${{ steps.pooch-cache.outputs.pooch-cache-path }}
+        cp -r ${{ steps.pooch-cache.outputs.pooch-cache-path }}/. ~/.pooch-cache-${{ inputs.name }}
+        ls -al ~/.pooch-cache-${{ inputs.name }}
+    
+    - name: find it
+      shell: bash
+      run: find ~ -name tiny-data.txt
 
     - name: Cache pooch cache
       uses: actions/cache@v3
       with:
-        path: ~/.cache/${{ inputs.name }}
+        path: ~/.pooch-cache-${{ inputs.name }}
         key: pooch-cache-${{ inputs.name }}
         enableCrossOsArchive: true
-
-    - name: Copy cache to the location where pooch will expect them
-      shell: bash
-      if: runner.os != 'Linux'
-      run: cp -r ~/.cache/${{ inputs.name }} ${{ steps.pooch-setup.outputs.pooch-cache-path }}
