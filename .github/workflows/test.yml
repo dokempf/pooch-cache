@@ -46,6 +46,7 @@ jobs:
       - uses: ./
         with:
           name: foo
+          fail-on-cache-miss: true
 
       - name: Simple testing logic
         shell: python

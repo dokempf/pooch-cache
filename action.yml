@@ -21,6 +21,9 @@ inputs:
     description: "Whether to extract zip files after download"
   extract-dir:
     description: "Directory to extract zip files into (relative to pooch cache location). Only used if extract is true."
+  fail-on-cache-miss:
+    description: "Fail the workflow if cache entry is not found. Default: false"
+    default: "false"
 
 runs:
   using: "composite"
@@ -48,6 +51,7 @@ runs:
         path: .pooch-cache/${{ inputs.name }}
         key: pooch-cache-${{ inputs.name }}
         enableCrossOsArchive: true
+        fail-on-cache-miss: ${{ inputs.fail-on-cache-miss }}
 
     - name: Download data via pooch (no-op in case of cache hit)
       shell: python
