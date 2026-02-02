@@ -17,50 +17,51 @@ inputs:
     description: "Registry files which download. Pass as new line separated string."
   filename-whitelist:
     description: "A whitelist of filenames used when downloading files from registries (useful for e.g. partial downloads from a DOI)"
+  extract:
+    description: "Whether to extract archive files (zip, tar, tar.gz) after download"
+  extract-dir:
+    description: "Directory to extract archive files into (relative to pooch cache location). Only used if extract is true."
+  fail-on-cache-miss:
+    description: "Fail the workflow if cache entry is not found. Default: false"
+    default: "false"
 
 runs:
   using: "composite"
   steps:
-    - uses: actions/setup-python@v5
+    - uses: actions/setup-python@v6
 
     - name: Install pooch
       shell: bash
       run: python -m pip install pooch
-  
-    - name: Cache pooch cache
-      uses: actions/cache@v3
-      with:
-        path: ~/.pooch-cache-${{ inputs.name }}
-        key: pooch-cache-${{ inputs.name }}
-        enableCrossOsArchive: true
 
-    - name: Determine actual pooch cache location
-      shell: python
-      id: pooch-cache
-      run: |
-        import os
-        import pooch
-
-        print(pooch.os_cache('${{ inputs.name }}'))
-        with open(os.environ["GITHUB_OUTPUT"], "a") as f:
-            f.write(f"pooch-cache-path={pooch.os_cache('${{ inputs.name }}')}")
-
-    - name: Copy GH cache to the location where pooch will expect them
+    - name: Resolve pooch cache path
+      id: cache-path
       shell: bash
       run: |
-        mkdir -p ~/.pooch-cache-${{ inputs.name }}
-        ls -al ~/.pooch-cache-${{ inputs.name }}
-        cp -r ~/.pooch-cache-${{ inputs.name }}/. ${{ steps.pooch-cache.outputs.pooch-cache-path }}
-        ls -al ${{ steps.pooch-cache.outputs.pooch-cache-path }}
+        CACHE_REL_PATH=".pooch-cache/${{ inputs.name }}"
+        CACHE_ABS_PATH="${GITHUB_WORKSPACE}/${CACHE_REL_PATH}"
+        mkdir -p "$CACHE_ABS_PATH"
+        echo "POOCH_CACHE_PATH=$CACHE_ABS_PATH" >> "$GITHUB_ENV"
+        echo "POOCH_CACHE_REL_PATH=$CACHE_REL_PATH" >> "$GITHUB_ENV"
+        echo "path=$CACHE_ABS_PATH" >> "$GITHUB_OUTPUT"
 
-    - name: Download data via pooch (no-op in case of cache hit, otherwise performs the actual download)
+    - name: Cache pooch cache
+      uses: actions/cache@v5
+      with:
+        path: .pooch-cache/${{ inputs.name }}
+        key: pooch-cache-${{ inputs.name }}
+        enableCrossOsArchive: true
+        fail-on-cache-miss: ${{ inputs.fail-on-cache-miss }}
+
+    - name: Download data via pooch (no-op in case of cache hit)
       shell: python
+      id: pooch-setup
       run: |
         import os
         import pooch
 
         # Get the cache location
-        cache = pooch.os_cache("${{ inputs.name }}")
+        cache = os.environ["POOCH_CACHE_PATH"]
 
         # Parse the inputs into Python data structures
 
@@ -79,6 +80,18 @@ runs:
         if len(file_urls) != len(known_hashes):
             raise ValueError("Number of file URLs must match number of known hashes")
 
+        extract = "${{ inputs.extract }}".lower() == "true"
+        extract_dir = "${{ inputs.extract-dir }}" or None
+
+        def maybe_extract(p, fn):
+            fn_lower = fn.lower()
+            if extract:
+                if fn_lower.endswith(".zip"):
+                    return p.fetch(fn, processor=pooch.Unzip(extract_dir=extract_dir))
+                elif fn_lower.endswith((".tar", ".tar.gz", ".tgz")):
+                    return p.fetch(fn, processor=pooch.Untar(extract_dir=extract_dir))
+            return p.fetch(fn)
+
         # Download all DOI content
         for doi in dois:
             p = pooch.Pooch(base_url=f"doi:{doi}", path=cache)
@@ -87,36 +100,50 @@ runs:
             for fn in p.registry:
                 if whitelist and fn not in whitelist:
                     continue
-                p.fetch(fn)
+                maybe_extract(p, fn)
 
         # Download all registry content
         for base, reg in zip(base_urls, registry_files):
-            p = pooch.Pooch(base_url=base_url, path=cache)
+            p = pooch.Pooch(base_url=base, path=cache)
             p.load_registry(reg)
 
             for fn in p.registry:
                 if whitelist and fn not in whitelist:
                     continue
-                p.fetch(fn)
+                maybe_extract(p, fn)
 
         # Download all files
         for url, hash in zip(file_urls, known_hashes):
-            pooch.retrieve(url=url, known_hash=hash, path=cache)
+            filename = os.path.basename(url)
+            fn_lower = filename.lower()
+            processor = None
+            if extract:
+                if fn_lower.endswith(".zip"):
+                    processor = pooch.Unzip(extract_dir=extract_dir)
+                elif fn_lower.endswith((".tar", ".tar.gz", ".tgz")):
+                    processor = pooch.Untar(extract_dir=extract_dir)
+            pooch.retrieve(url=url, known_hash=hash, path=cache, processor=processor)
 
-    - name: Copy Pooch cache back to the GH cache location
-      shell: bash
+        with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+            f.write(f"pooch-cache-path={cache}")
+
+    - name: Copy cache to the location where pooch will expect them
+      shell: python
       run: |
-        ls -al ${{ steps.pooch-cache.outputs.pooch-cache-path }}
-        cp -r ${{ steps.pooch-cache.outputs.pooch-cache-path }}/. ~/.pooch-cache-${{ inputs.name }}
-        ls -al ~/.pooch-cache-${{ inputs.name }}
-    
-    - name: find it
-      shell: bash
-      run: find ~ -name tiny-data.txt
+        import os
+        import shutil
+        from pathlib import Path
+        import pooch
 
-    - name: Cache pooch cache
-      uses: actions/cache@v3
-      with:
-        path: ~/.pooch-cache-${{ inputs.name }}
-        key: pooch-cache-${{ inputs.name }}
-        enableCrossOsArchive: true
+        source = Path(os.environ["POOCH_CACHE_PATH"])
+        dest = Path(pooch.os_cache("${{ inputs.name }}"))
+
+        print(f"Source: {source} (exists: {source.exists()})")
+        print(f"Dest: {dest}")
+
+        if source.exists() and source != dest:
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            if dest.exists():
+                shutil.rmtree(dest)
+            shutil.copytree(source, dest)
+            print(f"Copied {source} -> {dest}")

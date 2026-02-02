@@ -31,6 +31,11 @@ This is the full reference of parameters for this action:
 * `registry_files` (optional): A list of registry files to download using pooch. Each file should be on its own line.
 * `filename-whitelist` (optional): A list of filenames to whitelist for download. Can be used to not
   download all files found under the given DOIs/URLs but only those specified here. Each filename should be on its own line.
+* `extract` (optional): Whether to automatically extract archive files (ZIP, TAR, TAR.GZ) after download. Set to `true` to enable extraction.
+  If enabled, archives will be extracted to the cache directory or to the directory specified by `extract-dir`.
+* `extract-dir` (optional): Directory path (relative to the pooch cache location) where archive files should be extracted.
+  This is only used if `extract` is set to `true`. If not specified, files will be extracted to the cache directory.
+* `fail-on-cache-miss`: (optional): Whether to fail the workflow if the cache entry is not found. Set to `true` to enable this behavior. Default is `false`.
 
 ## Contributing & Licensing
 
