@@ -1,5 +1,5 @@
 name: "pooch-cache"
-description: "Caches pooches cache"
+description: "Caches pooch's cache in a GH cache"
 inputs:
   name:
     description: "The name of the cache, as passed to pooch.os_cache"
